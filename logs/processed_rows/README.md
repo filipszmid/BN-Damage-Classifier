@@ -1,0 +1,1 @@
+# OCR-ed rows putted on white background

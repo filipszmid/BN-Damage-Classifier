@@ -1,0 +1,10 @@
+services:
+  app:
+    build: .
+    ports:
+      - 8000:8000
+    volumes:
+      - ./src:/app/src
+    env_file:
+    - .env
+    command: poetry run uvicorn src.app:app --host 0.0.0.0 --reload

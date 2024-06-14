@@ -1,0 +1,4 @@
+paths:
+  pricer:
+    components_map_path: 'data/price_catalogues/Zakres L1;Typ - Komponent.xlsx'
+    pricer_path: 'data/price_catalogues/excel_3269.xlsx'
