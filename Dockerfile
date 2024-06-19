@@ -4,6 +4,9 @@ FROM python:3.11
 # Set the working directory in the Docker container
 WORKDIR /app
 
+# Poetry env inside app
+ENV POETRY_CACHE_DIR=/app/poetry_cache
+
 # Copy the Python dependencies file and the Poetry configuration files
 COPY pyproject.toml poetry.lock* /app/
 
