@@ -1,0 +1,4 @@
+
+# Added by pim
+import datetime
+self.release_info = {'comment': None, 'image': None, 'p4change': None, 'meta': u'None', 'id': 347046, 'branch_id': 17103, 'label': None, 'platform': u'any', 'state': 0, 'version': u'6.2.0', 'role': 4, 'rel': 10, 'type': u'c', 'product': u'gplinuxrpm', 'branch': u'gp/release/6.2.0_linux', 'publish_id': u'44', 'variant': None, 'source_type': None, 'base': None, 'date': datetime.datetime(2024, 5, 9, 12, 40, 45, 94826, tzinfo=<django.utils.timezone.FixedOffset object at 0x10decd510>), 'repository_name': u'gpl_6_2_0', 'name': u'PanGPLinux', 'githash': None, 'flags': u'insecure,app_package', 'source_id': None, 'gitdate': None}
