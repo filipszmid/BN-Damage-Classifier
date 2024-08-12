@@ -8,26 +8,6 @@ set +a
 #echo "Installing GlobalProtect VPN..."
 #sudo dpkg -i data/global_protect/PanGPLinux-6.2.0-c10/GlobalProtect_focal_deb-6.2.0.1-265.deb
 
-ls -l /opt/paloaltonetworks/globalprotect
-
-chmod +x /opt/paloaltonetworks/globalprotect
-
-GP_PATH=$(find / -type f -name globalprotect 2>/dev/null | head -n 1)
-
-if [ -z "$GP_PATH" ]; then
-    echo "GlobalProtect executable not found, exiting."
-    exit 1
-fi
-
-# Extract the directory from GP_PATH and add to PATH
-GP_DIR=$(dirname "$GP_PATH")
-export PATH=$PATH:$GP_DIR
-echo "GlobalProtect directory added to PATH: $GP_DIR"
-
-"$GP_PATH" help
-
-globalprotect help
-
 echo "Configuring VPN..."
 globalprotect connect --portal $VPN_IP_GATEWAY --username $VPN_LOGIN --password "$VPN_PASSWORD"
 sleep 3
