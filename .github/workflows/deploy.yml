@@ -1,0 +1,44 @@
+name: Deploy to Dev with VPN and SSH
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main  # or any other branch you want to trigger the deployment
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest  # Equivalent to using ubuntu:20.04
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y wget curl sshpass libgtk2.0-0 libcanberra-gtk-module libx11-xcb1 sudo
+
+    - name: List directory contents
+      run: ls -la
+
+    - name: Install GlobalProtect VPN
+      run: |
+        sudo dpkg -i data/global_protect/PanGPLinux-6.2.0-c10/GlobalProtect_deb-6.2.0.1-265.deb
+        sudo globalprotect connect --portal ${{ secrets.VPN_IP_GATEWAY }} --username ${{ secrets.VPN_LOGIN }} --password "${{ secrets.VPN_PASSWORD }}"
+
+    - name: Show GlobalProtect Help
+      run: globalprotect help
+
+    # Uncomment and adapt these lines if needed
+    # - name: Run Custom Install Script
+    #   run: sudo data/global_protect/PanGPLinux-6.2.0-c10/gp_install.sh
+
+    # - name: Set Execute Permission for Deploy Script
+    #   run: chmod +x deploy_dev.sh
+
+    # - name: Execute Deployment Script
+    #   run: ./deploy_dev.sh
