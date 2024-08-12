@@ -7,7 +7,7 @@ build:
 	docker compose build --no-cache
 
 test:
-	pytest
+	poetry run pytest
 
 venv:
 	poetry install
