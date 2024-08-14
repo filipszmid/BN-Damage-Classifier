@@ -17,26 +17,50 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    - name: Install Dependencies
+    - name: Configure VPN
       run: |
-        sudo apt-get update
-        sudo apt-get install -y wget curl sshpass libgtk2.0-0 libcanberra-gtk-module libx11-xcb1 sudo
+        - apt-get update
+        - apt-get install -y sudo
+        - sudo apt-get install -y wget build-essential
+        - printenv | grep VPN
+        - wget ftp://ftp.infradead.org/pub/openconnect/openconnect-9.12.tar.gz
+        - tar zxvf openconnect-9.12.tar.gz
+        - cd openconnect-9.12/
+        - echo "---------------"
+        - export DEBIAN_FRONTEND=noninteractive
+        - sudo apt-get update
+        - echo "tzdata tzdata/Areas select Europe" | sudo debconf-set-selections
+        - echo "tzdata tzdata/Zones/Europe select Berlin" | sudo debconf-set-selections
+        - sudo DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata
+        - sudo apt-get install -y libssl-dev pkg-config libxml2-dev zlib1g-dev build-essential
+        - echo "---------------"
+        - openssl version
+        - echo "---------------"
+        - ./configure --with-vpnc-script=data/etc/vpnc/vpnc-script --disable-nls
+        - make
+        - echo ${{ secrets.$VPN_PASSWORD }} | sudo ./openconnect --protocol=gp 85-128-59-132.static.ip.netia.com.pl --user ${{ secrets.VPN_LOGIN }} --passwd-on-stdin --servercert pin-sha256:2oBRzvBn9njPzs4+kexP+Tasw9bl3UbBPh7a1zTqs4w= -b
 
-    - name: List directory contents
-      run: ls -la
 
-    - name: Install GlobalProtect VPN
-      run: |
-        sudo dpkg -i data/global_protect/PanGPLinux-6.2.0-c10/GlobalProtect_focal_deb-6.2.0.1-265.deb
-
-    - name: Setup upterm session
-      uses: lhotari/action-upterm@v1
-
-    - name: Connect
-      run: globalprotect connect --portal ${{ secrets.VPN_IP_GATEWAY }} --username ${{ secrets.VPN_LOGIN }} --password "${{ secrets.VPN_PASSWORD }}"
-
-    - name: Show GlobalProtect Help
-      run: globalprotect show --details
+#    - name: Install Dependencies
+#      run: |
+#        sudo apt-get update
+#        sudo apt-get install -y wget curl sshpass libgtk2.0-0 libcanberra-gtk-module libx11-xcb1 sudo
+#
+#    - name: List directory contents
+#      run: ls -la
+#
+#    - name: Install GlobalProtect VPN
+#      run: |
+#        sudo dpkg -i data/global_protect/PanGPLinux-6.2.0-c10/GlobalProtect_focal_deb-6.2.0.1-265.deb
+#
+#    - name: Setup upterm session
+#      uses: lhotari/action-upterm@v1
+#
+#    - name: Connect
+#      run: globalprotect connect --portal ${{ secrets.VPN_IP_GATEWAY }} --username ${{ secrets.VPN_LOGIN }} --password "${{ secrets.VPN_PASSWORD }}"
+#
+#    - name: Show GlobalProtect Help
+#      run: globalprotect show --details
 
     # Uncomment and adapt these lines if needed
     # - name: Run Custom Install Script
