@@ -19,26 +19,26 @@ jobs:
 
     - name: Configure VPN
       run: |
-        - apt-get update
-        - apt-get install -y sudo
-        - sudo apt-get install -y wget build-essential
-        - printenv | grep VPN
-        - wget ftp://ftp.infradead.org/pub/openconnect/openconnect-9.12.tar.gz
-        - tar zxvf openconnect-9.12.tar.gz
-        - cd openconnect-9.12/
-        - echo "---------------"
-        - export DEBIAN_FRONTEND=noninteractive
-        - sudo apt-get update
-        - echo "tzdata tzdata/Areas select Europe" | sudo debconf-set-selections
-        - echo "tzdata tzdata/Zones/Europe select Berlin" | sudo debconf-set-selections
-        - sudo DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata
-        - sudo apt-get install -y libssl-dev pkg-config libxml2-dev zlib1g-dev build-essential
-        - echo "---------------"
-        - openssl version
-        - echo "---------------"
-        - ./configure --with-vpnc-script=data/etc/vpnc/vpnc-script --disable-nls
-        - make
-        - echo ${{ secrets.VPN_PASSWORD }} | sudo ./openconnect --protocol=gp 85-128-59-132.static.ip.netia.com.pl --user ${{ secrets.VPN_LOGIN }} --passwd-on-stdin --servercert pin-sha256:2oBRzvBn9njPzs4+kexP+Tasw9bl3UbBPh7a1zTqs4w= -b
+        apt-get update
+        apt-get install -y sudo
+        sudo apt-get install -y wget build-essential
+        printenv | grep VPN
+        wget ftp://ftp.infradead.org/pub/openconnect/openconnect-9.12.tar.gz
+        tar zxvf openconnect-9.12.tar.gz
+        cd openconnect-9.12/
+        echo "---------------"
+        export DEBIAN_FRONTEND=noninteractive
+        sudo apt-get update
+        echo "tzdata tzdata/Areas select Europe" | sudo debconf-set-selections
+        echo "tzdata tzdata/Zones/Europe select Berlin" | sudo debconf-set-selections
+        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata
+        sudo apt-get install -y libssl-dev pkg-config libxml2-dev zlib1g-dev build-essential
+        echo "---------------"
+        openssl version
+        echo "---------------"
+        ./configure --with-vpnc-script=data/etc/vpnc/vpnc-script --disable-nls
+        make
+        echo ${{ secrets.VPN_PASSWORD }} | sudo ./openconnect --protocol=gp 85-128-59-132.static.ip.netia.com.pl --user ${{ secrets.VPN_LOGIN }} --passwd-on-stdin --servercert pin-sha256:2oBRzvBn9njPzs4+kexP+Tasw9bl3UbBPh7a1zTqs4w= -b
 
 
 #    - name: Install Dependencies
