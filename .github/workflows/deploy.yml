@@ -38,7 +38,7 @@ jobs:
         - echo "---------------"
         - ./configure --with-vpnc-script=data/etc/vpnc/vpnc-script --disable-nls
         - make
-        - echo ${{ secrets.$VPN_PASSWORD }} | sudo ./openconnect --protocol=gp 85-128-59-132.static.ip.netia.com.pl --user ${{ secrets.VPN_LOGIN }} --passwd-on-stdin --servercert pin-sha256:2oBRzvBn9njPzs4+kexP+Tasw9bl3UbBPh7a1zTqs4w= -b
+        - echo ${{ secrets.VPN_PASSWORD }} | sudo ./openconnect --protocol=gp 85-128-59-132.static.ip.netia.com.pl --user ${{ secrets.VPN_LOGIN }} --passwd-on-stdin --servercert pin-sha256:2oBRzvBn9njPzs4+kexP+Tasw9bl3UbBPh7a1zTqs4w= -b
 
 
 #    - name: Install Dependencies
