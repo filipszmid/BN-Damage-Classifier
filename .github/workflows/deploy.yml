@@ -19,8 +19,6 @@ jobs:
 
     - name: Configure VPN
       run: |
-        apt-get update
-        apt-get install -y sudo
         sudo apt-get install -y wget build-essential
         printenv | grep VPN
         wget ftp://ftp.infradead.org/pub/openconnect/openconnect-9.12.tar.gz
