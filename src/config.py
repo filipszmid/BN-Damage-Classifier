@@ -11,17 +11,17 @@ def get_project_root():
     project_root = os.path.join(current_dir, '../')  # Adjust the traversal to the project root
     return os.path.abspath(project_root)
 
-def get_config():
-    project_root = get_project_root()
-    config_path = os.path.join(project_root, 'config.yml')
-
-    with open(config_path, 'r') as file:
-        config = yaml.safe_load(file)
-
-    if 'paths' in config:
-        for category, paths_dict in config['paths'].items():
-            for path_key, path_value in paths_dict.items():
-                # Assume that every entry under 'paths' is a filepath to be updated
-                config['paths'][category][path_key] = os.path.join(project_root, path_value)
-
-    return config
+# def get_config():
+#     project_root = get_project_root()
+#     config_path = os.path.join(project_root, 'config.yml')
+#
+#     with open(config_path, 'r') as file:
+#         config = yaml.safe_load(file)
+#
+#     if 'paths' in config:
+#         for category, paths_dict in config['paths'].items():
+#             for path_key, path_value in paths_dict.items():
+#                 # Assume that every entry under 'paths' is a filepath to be updated
+#                 config['paths'][category][path_key] = os.path.join(project_root, path_value)
+#
+#     return config

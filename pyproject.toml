@@ -26,6 +26,14 @@ fastapi = "^0.111.0"
 uvicorn = "^0.30.1"
 pytest = "^8.2.2"
 httpx = "^0.27.0"
+scikit-learn = "^1.5.1"
+tensorboard = "^2.17.0"
+black = "^24.4.2"
+random-word = "^1.0.11"
+tensorflow = "^2.17.0"
+hyperopt = "^0.2.7"
+motor = "^3.5.1"
+pytest-asyncio = "^0.24.0"
 
 
 [build-system]

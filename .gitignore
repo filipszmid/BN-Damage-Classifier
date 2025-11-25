@@ -50,7 +50,9 @@ Thumbs.db
 
 # My files
 .env
-data/
 keyfile.json
 client_secret_248228284139-0r2vhn8di7erku2lt1ik8uafips6lr49.apps.googleusercontent.com.json
 token.json
+logs/
+!data/**/logs/**/README.md
+!data/**/logs/**/.gitkeep

@@ -1,7 +1,9 @@
+import os
+
 import pandas as pd
 from loguru import logger
 
-from src.config import get_config
+from src.config import get_project_root
 
 
 class PricerWorkflow:
@@ -13,13 +15,12 @@ class PricerWorkflow:
         pricer (pd.DataFrame): DataFrame containing pricing data.
     """
 
-    def __init__(self):
+    def __init__(self, shipowner):
         """Initialize the PricerWorkflow with configuration settings and load necessary data."""
-        config = get_config()
-        self.components_map = pd.read_excel(
-            config["paths"]["pricer"]["components_map_path"]
-        )
-        self.pricer = pd.read_excel(config["paths"]["pricer"]["pricer_path"])
+        self.base_path = os.path.join(get_project_root(),"data", shipowner, "price_catalogues")
+
+        self.components_map = pd.read_excel(os.path.join(self.base_path, "components_map.xlsx"))
+        self.pricer = pd.read_excel(os.path.join(self.base_path, "prices.xlsx"))
 
     def filter_component_map(
         self, l1_values: list, container_type: str
@@ -115,8 +116,8 @@ class PricerWorkflow:
 
 
 if __name__ == "__main__":
-    pricer = PricerWorkflow()
-    l1_list, con_type = ["D", "F"], "DC"
+    pricer = PricerWorkflow("cma", "rf")
+    l1_list, con_type = ["D", "F"], "rf"
     logger.debug(
         f"Starting pricing workflow for L1: {l1_list} and container type: {con_type}"
     )

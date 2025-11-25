@@ -1,10 +1,29 @@
+version: '3.8'
+
 services:
   app:
     build: .
+    image: bl-damage-classifier:latest
+    restart: on-failure
     ports:
-      - 8000:8000
+      - "8000:8000"
     volumes:
-      - ./src:/app/src
+      - ./src:/src
+      - ./data/cma/logs/processed_rows:/data/cma/logs/processed_rows
     env_file:
-    - .env
+      - .env
     command: poetry run uvicorn src.app:app --host 0.0.0.0 --reload
+    depends_on:
+      - mongo
+
+  mongo:
+    image: mongo:latest
+    restart: always
+    command: [ "mongod", "--quiet" ]
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+volumes:
+  mongo-data:

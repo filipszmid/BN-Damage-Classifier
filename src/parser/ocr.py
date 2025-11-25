@@ -1,18 +1,19 @@
-import math
+import asyncio
 import os
 import re
 from datetime import datetime
 from typing import List, Tuple
 
+import math
 from PIL import Image, ImageDraw
+from bson import Binary
 from dotenv import load_dotenv
 from google.cloud import vision
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
 from loguru import logger
 
 from src.config import get_project_root
 from src.parser.utils import move_report_from_tests_to_logs
+from src.schema import RowMap, Report
 
 load_dotenv()
 
@@ -39,59 +40,55 @@ class OCRWorkflow:
     BOX_HEIGHT: int = 1000
     PROJECT_ROOT = get_project_root()
 
-    def __init__(self, report_name: str) -> None:
+    def __init__(self, db, report_name: str, shipowner: str) -> None:
         """
         Initializes directories, credentials, and logging settings.
 
         Args:
         report_name (str): Name of the report file to process.
         """
-        self.reports_dir = os.path.join(self.PROJECT_ROOT, "logs/reports/") # TODO: to delete redundant
+        self.db = db
+        self.shipowner = shipowner
+        self.basedir = os.path.join(self.PROJECT_ROOT, "data", shipowner)
+        self.reports_dir = os.path.join(
+            self.basedir, "logs/reports/"
+        )  # TODO: to delete redundant
         self.report_name = report_name
+        self.report_in_db_id = None
         self.report_name_no_extension, self.extension = report_name.split(".")
-        self.credentials = self._get_credentials()
-        self.vision_client = vision.ImageAnnotatorClient(credentials=self.credentials)
-        self.report_ocr_dir = os.path.join(self.PROJECT_ROOT, "logs/report_ocr_boxes/")
-        self.raw_report_dir = os.path.join(self.PROJECT_ROOT, "logs/reports/")
-        self.processed_rows_dir = os.path.join(self.PROJECT_ROOT, "logs/processed_rows/")
-        self.raw_processed_dir = os.path.join(self.PROJECT_ROOT, "logs/raw_processed_rows/")
-        self.annotation_log_dir = os.path.join(self.PROJECT_ROOT, "logs/img_annotations/")
+        self.vision_client = self._get_vision_client()
+        self.report_ocr_dir = os.path.join(self.basedir, "logs/report_ocr_boxes/")
+        self.raw_report_dir = os.path.join(self.basedir, "logs/reports/")
+        self.processed_rows_dir = os.path.join(self.basedir, "logs/processed_rows/")
+        self.raw_processed_dir = os.path.join(self.basedir, "logs/raw_processed_rows/")
+        self.annotation_log_dir = os.path.join(self.basedir, "logs/img_annotations/")
         os.makedirs(self.report_ocr_dir, exist_ok=True)
         os.makedirs(self.raw_report_dir, exist_ok=True)
         os.makedirs(self.processed_rows_dir, exist_ok=True)
         os.makedirs(self.raw_processed_dir, exist_ok=True)
         os.makedirs(self.annotation_log_dir, exist_ok=True)
         self.pipeline_timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")[:17]
-        logger.info(f"Initialized OCR workflow for {self.report_name} \n Pipeline timestamp: {self.pipeline_timestamp}")
+        logger.info(
+            f"Initialized OCR workflow for {self.report_name} \n Pipeline timestamp: {self.pipeline_timestamp}"
+        )
+        self.verbose = True if os.getenv("VERBOSE") == "1" else False
 
-    def _get_credentials(self) -> Credentials:
+    @staticmethod
+    def _get_vision_client():
         """
-        Retrieves or generates new Google Cloud credentials.
+        Initializes the Vision API client using an API key stored in the environment variables.
 
         Returns:
-        Credentials: The authenticated credentials for Google Cloud.
+        vision.ImageAnnotatorClient: Initialized client with API Key authentication.
         """
-        creds_file = os.path.join(self.PROJECT_ROOT, "token.json")
-        client_secret_file = os.path.join(self.PROJECT_ROOT,"client_secret.json") #TODO: crashuje na tym, inna sciezka?
-        logger.success(creds_file)
-        logger.success(client_secret_file)
-        if os.path.exists(creds_file):
-            creds = Credentials.from_authorized_user_file(
-                creds_file, scopes=self.SCOPES
-            )
-            logger.info("App authenticated, using token.")
-        else:
-            logger.warning("No token found, app need to be authenticated")
-            flow = InstalledAppFlow.from_client_secrets_file(
-                client_secret_file, scopes=self.SCOPES
-            )
-            creds = flow.run_local_server(port=0)
-            with open(creds_file, "w") as token:
-                token.write(creds.to_json())
-            logger.info("App authenticated. Token saved.")
-        return creds
+        api_key = os.getenv("GOOGLE_API_KEY")
+        if not api_key:
+            raise EnvironmentError("API key not found in environment variables.")
 
-    def detect_text(self) -> vision.AnnotateImageResponse:
+        client_options = {"api_key": api_key}
+        return vision.ImageAnnotatorClient(client_options=client_options)
+
+    async def detect_text(self) -> vision.AnnotateImageResponse:
         """
         Performs text detection on the specified image file.
 
@@ -101,6 +98,15 @@ class OCRWorkflow:
         path = os.path.join(self.reports_dir, self.report_name)
         with open(path, "rb") as image_file:
             content = image_file.read()
+        report_record = Report(
+            pipeline_timestamp=self.pipeline_timestamp,
+            shipowner=self.shipowner,
+            report_blob=content,
+            report_name=self.report_name,
+        )
+        new_record = await self.db["reports"].insert_one(report_record.dict())
+        self.report_in_db_id = str(new_record.inserted_id)
+
         image = vision.Image(content=content)
         response = self.vision_client.document_text_detection(image=image)
         self._save_response_annotations(response)
@@ -116,11 +122,14 @@ class OCRWorkflow:
         Args:
         response (vision.AnnotateImageResponse): The response containing text annotations.
         """
-        filename = f"{self.pipeline_timestamp}-{self.report_name_no_extension}.txt"
-        filepath = os.path.join(self.annotation_log_dir, filename)
-        with open(filepath, "w") as file:
-            file.write(str(response))
-        logger.info(f"Saved response annotations to {filepath}")
+        if self.verbose:
+            filename = f"{self.pipeline_timestamp}-{self.report_name_no_extension}.txt"
+            filepath = os.path.join(self.annotation_log_dir, filename)
+            with open(filepath, "w") as file:
+                file.write(str(response))
+            logger.info(f"Saved response annotations to {filepath}")
+
+        self.img_annotation = response
 
     def _center_image_on_fixed_canvas(
         self, file_path: str, code: str, canvas_width: int, canvas_height: int
@@ -148,10 +157,29 @@ class OCRWorkflow:
 
             # Save the final image back to the same file or to a new file if preferred
             background.save(file_path_white_bg)
+            with open(file_path_white_bg, "rb") as image_file:
+                img_blob = Binary(image_file.read())
 
-    def run_ocr_pipeline(
-        self, response: vision.AnnotateImageResponse
-    ) -> str:
+            row_map = RowMap(
+                pipeline_timestamp=self.pipeline_timestamp,
+                shipowner=self.shipowner,
+                container_type=None,
+                destination_image=self.raw_report_dir_filename,
+                processed_row=file_path_white_bg,
+                processed_row_blob=img_blob,
+                report_name=self.report_name,
+                report_in_db_id=self.report_in_db_id,
+                code=code,
+                user_label=None,
+                img_annotation=str(self.img_annotation),
+                gpt_label=None,
+            )
+            new_record = self.db["row_map_dataset"].insert_one(row_map.dict())
+
+        if not self.verbose:
+            os.remove(file_path)
+
+    def run_ocr_pipeline(self, response: vision.AnnotateImageResponse) -> str:
         """
         Draws bounding boxes around detected text and saves annotated images.
 
@@ -160,7 +188,11 @@ class OCRWorkflow:
         """
         image_path = self.reports_dir + self.report_name
         img = Image.open(image_path)
-        img.save(f"{self.raw_report_dir}{self.pipeline_timestamp}-{self.report_name}")
+        self.raw_report_dir_filename = (
+            f"{self.raw_report_dir}{self.pipeline_timestamp}-{self.report_name}"
+        )
+        if self.verbose:
+            img.save(self.raw_report_dir_filename)
         draw_img = img.copy()  # Create a copy for drawing
         draw = ImageDraw.Draw(draw_img)
 
@@ -207,11 +239,15 @@ class OCRWorkflow:
                         code,
                         angle,
                     )
-        draw_img.save(
-            f"{self.report_ocr_dir}{self.pipeline_timestamp}-{self.report_name_no_extension}-OCR.png"
+        self.report_ocr_filename = f"{self.report_ocr_dir}{self.pipeline_timestamp}-{self.report_name_no_extension}-OCR.png"
+
+        if self.verbose:
+            draw_img.save(self.report_ocr_filename)
+        logger.success(
+            f"Drawn OCR boxes on report {self.report_name_no_extension}\n Pipeline: {self.pipeline_timestamp}"
         )
-        logger.success(f"Drawn OCR boxes on report {self.report_name_no_extension}\n Pipeline: {self.pipeline_timestamp}")
         return self.pipeline_timestamp
+
     @staticmethod
     def _generate_regex_pattern(letter_map: dict) -> str:
         """
@@ -308,13 +344,25 @@ class OCRWorkflow:
 
         rotated_cropped_image.save(file_path)
 
+        # img = Image.open(file_path)
+        # img.show()
+
         # resize_image_to_fixed_height(file_path, 500)
         self._center_image_on_fixed_canvas(file_path, code, box_width, box_height)
 
+async def main(workflow):
+    response = await workflow.detect_text()
+    workflow.run_ocr_pipeline(response)
+    await workflow.db["row_map_dataset"].delete_many({"pipeline_timestamp": workflow.pipeline_timestamp})
+    await workflow.db["reports"].delete_one({"pipeline_timestamp": workflow.pipeline_timestamp})
 
 if __name__ == "__main__":
+    from motor.motor_asyncio import AsyncIOMotorClient
+
+    mongodb_client = AsyncIOMotorClient("mongodb://localhost:27017")
+    mongodb = mongodb_client["image_recognition_db"]
     report_name = "APZU3211393_418675_20231212_0747334299019332773351257.webp"
-    move_report_from_tests_to_logs(report_name)
-    workflow = OCRWorkflow(report_name)
-    response = workflow.detect_text()
-    workflow.run_ocr_pipeline(response)
+    move_report_from_tests_to_logs(report_name, "cma")
+    workflow = OCRWorkflow(mongodb, report_name, "cma")
+    # Database need to be up !
+    asyncio.run(main(workflow))

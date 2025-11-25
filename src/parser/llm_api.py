@@ -31,8 +31,10 @@ class RepairRecommenderWorkflow:
 
     def __init__(
         self,
+        db,
         report_name: str,
         pipeline_timestamp: str,
+        shipowner: str,
         container_type: str,
         openai_client: OpenAI = None,
         pricer_client: PricerWorkflow = None,
@@ -43,21 +45,28 @@ class RepairRecommenderWorkflow:
         Parameters:
             report_name (str): The base name for the report images to identify relevant files.
             pipeline_timestamp (str): The unique pipeline timestamp.
+            shipowner (str): Aromator.
             container_type (str): The type of container, used for filtering pricing data.
             openai_client (OpenAI, optional): A custom instance of the OpenAI client. Defaults to a new instance if not provided.
             pricer_client (PricerWorkflow, optional): A custom instance of the PricerWorkflow. Defaults to a new instance if not provided.
         """
+        self.db = db
         self.processed_rows_path = os.path.join(
-            self.PROJECT_ROOT, "logs/processed_rows/"
+            self.PROJECT_ROOT, f"data/{shipowner}/logs/processed_rows/"
         )
-        self.gpt_labels_path = os.path.join(self.PROJECT_ROOT, "logs/gpt_labels/")
+        self.gpt_labels_path = os.path.join(
+            self.PROJECT_ROOT, f"data/{shipowner}/logs/gpt_labels/"
+        )
         self.report_name_no_extension = report_name.split(".")[0]
         self.pipeline_timestamp = pipeline_timestamp
         self.container_type = container_type
         self.openai_client = openai_client if openai_client is not None else OpenAI()
         self.pricer_client = (
-            pricer_client if pricer_client is not None else PricerWorkflow()
+            pricer_client
+            if pricer_client is not None
+            else PricerWorkflow(shipowner=shipowner)
         )
+        self.verbose = True if os.getenv("VERBOSE") == "1" else False
 
     def image_to_base64(self, image_path: str) -> str:
         """
@@ -106,7 +115,9 @@ class RepairRecommenderWorkflow:
             list: A list of dictionaries representing the structured data for the API request.
         """
         codes, l1_list = self.extract_codes_and_first_letters()
-        parts_hints = self.pricer_client.get_pricing_data(l1_list, self.container_type)
+        parts_hints = self.pricer_client.get_pricing_data(
+            l1_list, self.container_type.upper()
+        )
 
         logger.debug(f"Codes: {codes} First letters: {l1_list}\n")
         logger.debug(f"Part hints: {parts_hints.head()}")
@@ -144,12 +155,24 @@ class RepairRecommenderWorkflow:
         file_path = os.path.join(self.gpt_labels_path, f"{pipeline_timestamp}.json")
         os.makedirs(self.gpt_labels_path, exist_ok=True)
 
-        try:
-            with open(file_path, "w", encoding="utf-8") as f:
-                json.dump(json_response, f, ensure_ascii=False, indent=4)
-            logger.success(f"Response saved successfully to {file_path}")
-        except Exception as e:
-            logger.error(f"Failed to save response to log: {e}")
+        if self.verbose:
+            try:
+                with open(file_path, "w", encoding="utf-8") as f:
+                    json.dump(json_response, f, ensure_ascii=False, indent=4)
+                logger.success(f"Response saved successfully to {file_path}")
+            except Exception as e:
+                logger.error(f"Failed to save response to log: {e}")
+
+        json_response_dict = dict()
+        for elem in json_response:
+            json_response_dict[elem['localisation']] = elem
+
+        for key in json_response_dict.keys():
+            self.db["row_map_dataset"].update_one(
+                {"pipeline_timestamp": pipeline_timestamp, "code": key},
+                {"$set": {"gpt_label": json_response_dict[key],
+                          "container_type": self.container_type}},
+            )
 
     def request_recommendations(self, content: list) -> dict:
         """
@@ -217,26 +240,39 @@ class RepairRecommenderWorkflow:
         Returns:
             dict: A dictionary containing the recommendations from the OpenAI API.
         """
-        files = self.get_files()
-        content = self.construct_request(files)
-        response = self.request_recommendations(content)
-        return response
+        self.files = self.get_files()
+        content = self.construct_request(self.files)
+        recommendations = self.request_recommendations(content)
+        self.db["reports"].update_one(
+            {"pipeline_timestamp": self.pipeline_timestamp},
+            {"$set": {"recommendations": recommendations}},
+        )
+        return recommendations
 
 
 if __name__ == "__main__":
-    report_name, container_type = (
+    from motor.motor_asyncio import AsyncIOMotorClient
+
+    mongodb_client = AsyncIOMotorClient("mongodb://localhost:27017")
+    mongodb = mongodb_client["image_recognition_db"]
+    report_name, container_type, shipowner = (
         "APZU3211393_418675_20231212_0747334299019332773351257.webp",
-        "RF",
+        "dc",
+        "cma",
     )
 
     logger.info(
-        f"Starting repair recommendation for report: {report_name}, OCR rows from: "
+        f"Starting repair recommendation for report: {report_name}"
         f", and container type: {container_type}"
     )
+
+    # TODO: need to run ocr workflow first and copy the pipeline id here, these flows are independent
     workflow = RepairRecommenderWorkflow(
+        mongodb,
         report_name=report_name,
-        pipeline_timestamp="20240610231818",
+        pipeline_timestamp="20240816211144668",
         container_type=container_type,
+        shipowner=shipowner,
     )
     logger.debug("Recommender initialized")
     recommendations = workflow.recommend_repairs()

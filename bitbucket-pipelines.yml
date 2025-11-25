@@ -1,0 +1,13 @@
+image: ubuntu:20.04
+
+pipelines:
+  custom:
+    deploy--dev-with-vpn:
+      - step:
+          name: "Deploy to dev with VPN and SSH"
+          script:
+            - apt-get update
+            - apt-get install -y sudo
+            - sudo apt-get install -y wget build-essential
+            - chmod +x ./deploy_dev.sh
+            - sh ./deploy_dev.sh

@@ -1,0 +1,63 @@
+image: atlassian/default-image:2
+
+definitions:
+  caches:
+    apt-lists: /var/lib/apt/lists
+    apt-cache: /var/cache/apt
+
+  steps:
+    - step: &install-dependencies
+        name: "Install Dependencies"
+        caches:
+          - apt-lists
+          - apt-cache
+        script:
+          - apt-get update
+          - apt-get install -y sudo wget sshpass build-essential
+          - sudo apt-get -y install sshpass
+
+    - step: &deploy-to-dev
+        name: "Deploy to Dev Environment"
+        caches:
+          - apt-lists
+          - apt-cache
+        script:
+          - apt-get update && apt-get install -y gettext
+          - envsubst < deploy_dev.sh > deploy-out.sh
+          - pipe: atlassian/ssh-run:0.2.6
+            variables:
+              SSH_USER: $DEV_LOGIN
+              SERVER: $DEV_PROXY_IP
+              PORT: '60001'
+              COMMAND: './deploy-out.sh'
+              MODE: 'script'
+
+    - step: &build-and-test
+        name: "Build and Test Application"
+        script:
+          - pipe: atlassian/ssh-run:0.2.6
+            variables:
+              SSH_USER: $DEV_LOGIN
+              SERVER: $DEV_PROXY_IP
+              PORT: '60001'
+              COMMAND: 'make down && make build && make up && make venv && make test-integration'
+              MODE: 'script'
+
+pipelines:
+  pull-requests:
+    'main':  # Triggered on PR merge to main
+      - step: *install-dependencies
+      - step: *deploy-to-dev
+      - step: *build-and-test
+
+  custom:
+    manual-deployment:
+      - step: *install-dependencies
+      - step: *deploy-to-dev
+      - step: *build-and-test
+
+  branches:
+    'main': # Triggered on every push to main (debug)
+      - step: *install-dependencies
+      - step: *deploy-to-dev
+      - step: *build-and-test
