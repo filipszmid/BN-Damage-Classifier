@@ -228,7 +228,8 @@ models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
 ```
 Model have been trained to classify pictures of  handwritten damage text into metadata:
 ![processed_row.png](data%2Fdocs%2Fprocessed_row.png)
-Pictures have been normalizing by mapping OCR (GCP cloud vision) box into 1000x1000 pixels white space which will allow different augmentation like rotating, flipping, adding distractions etx.
+
+Pictures have been normalized by mapping OCR (GCP cloud vision) box into 1000x1000 pixels white space which will allow different augmentation like rotating, flipping, adding distractions etx.
 ## Training ResNet model
 
 ### Overfitting problem 
