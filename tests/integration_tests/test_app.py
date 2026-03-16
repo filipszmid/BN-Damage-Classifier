@@ -3,8 +3,8 @@ import pytest
 from loguru import logger
 from motor.motor_asyncio import AsyncIOMotorClient
 
-URL = "http://localhost:8000/read-report/"
-URL_DELETE = "http://localhost:8000/delete-logs/"
+URL = "http://localhost/api/read-report/"
+URL_DELETE = "http://localhost/api/delete-logs/"
 PHOTO_PATH = "tests/APZU3211393_418675_20231212_0747334299019332773351257.webp"
 SHIPOWNER = "cma"
 

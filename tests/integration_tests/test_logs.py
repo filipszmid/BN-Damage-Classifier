@@ -21,9 +21,15 @@ async def rows_map_data():
     return data
 
 
+HOST_PROJECT_ROOT = "/home/lorbi/Desktop/ALL-BAL-CV/BAL-Damage-Classifier"
+
+
 async def file_exists_in_docker(container_name, path):
     """Asynchronously check if file exists in Docker container."""
-    path = path.replace("../../", "")  # Normalize the path
+    # Strip host-absolute project root so the path becomes the container-mounted path
+    # e.g. /home/.../BAL-Damage-Classifier/data/cma/... -> /data/cma/...
+    path = path.replace("../../", "")  # legacy normalisation
+    path = path.replace(HOST_PROJECT_ROOT, "")
     cmd = f"docker exec {container_name} test -f {path}"
 
     proc = await asyncio.create_subprocess_shell(
@@ -36,7 +42,7 @@ async def file_exists_in_docker(container_name, path):
 @pytest.mark.asyncio
 async def test_processed_rows_are_valid_paths(rows_map_data):
     """Asynchronously test to ensure all entries in 'processed_row' are valid paths inside the Docker container."""
-    container_name = "bal-bn-damage-classifier-app-1"  # Adjust based on your actual Docker container name
+    container_name = "bal-damage-classifier-app-1"
     if not rows_map_data:
         logger.info("No data fetched from MongoDB. Test always pass.")
         return

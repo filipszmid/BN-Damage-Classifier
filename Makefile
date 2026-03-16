@@ -32,16 +32,20 @@ test-vars: ## test variables
 	@echo "Current dir: ${CURRENT_DIR}"
 
 .PHONY: up
-up: ## set up fast api
+up: ## set up composition
 	docker compose up -d
+
+.PHONY: up-db
+up-db: ## up only mongo service
+	docker compose up -d mongo
 
 .PHONY: down
 down: ## down services
 	docker compose down
 
 .PHONY: build
-build: ## build fast api
-	docker compose build --no-cache app
+build: ## build services
+	docker compose build --no-cache
 
 .PHONY: test-integration
 test-integration: ## run functional integration tests
@@ -54,6 +58,10 @@ test-unit: ## run unit tests
 .PHONY: venv
 venv: ## create poetry virtual environment
 	poetry install
+
+.PHONY: ui
+ui: ## start Streamlit comparison interface
+	poetry run streamlit run interface/streamlit/app.py
 
 .PHONY: clean
 clean: ## clean all log files

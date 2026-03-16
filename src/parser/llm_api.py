@@ -144,7 +144,7 @@ class RepairRecommenderWorkflow:
                 logger.error(f"Failed to process {file_path}: {e}")
         return content
 
-    def _save_to_logs(self, json_response, pipeline_timestamp) -> None:
+    async def _save_to_logs(self, json_response, pipeline_timestamp) -> None:
         """
         Saves a JSON response to a file in the specified directory with a filename based on the pipeline timestamp.
 
@@ -168,13 +168,13 @@ class RepairRecommenderWorkflow:
             json_response_dict[elem['localisation']] = elem
 
         for key in json_response_dict.keys():
-            self.db["row_map_dataset"].update_one(
+            await self.db["row_map_dataset"].update_one(
                 {"pipeline_timestamp": pipeline_timestamp, "code": key},
                 {"$set": {"gpt_label": json_response_dict[key],
                           "container_type": self.container_type}},
             )
 
-    def request_recommendations(self, content: list) -> dict:
+    async def request_recommendations(self, content: list) -> dict:
         """
         Sends a request to the OpenAI API with the constructed content and returns the response.
 
@@ -192,7 +192,7 @@ class RepairRecommenderWorkflow:
         logger.info(f"Raw response: {response.choices[0].message.content}")
 
         json_response = self._format_response(response.choices[0].message.content)
-        self._save_to_logs(json_response, self.pipeline_timestamp)
+        await self._save_to_logs(json_response, self.pipeline_timestamp)
 
         return json_response
 
@@ -233,7 +233,7 @@ class RepairRecommenderWorkflow:
             logger.error("Failed to parse JSON from the response.")
             raise WrongGPTAnswerError from e
 
-    def recommend_repairs(self):
+    async def recommend_repairs(self):
         """
         Orchestrates the process to recommend repairs based on the images and context provided.
 
@@ -242,8 +242,8 @@ class RepairRecommenderWorkflow:
         """
         self.files = self.get_files()
         content = self.construct_request(self.files)
-        recommendations = self.request_recommendations(content)
-        self.db["reports"].update_one(
+        recommendations = await self.request_recommendations(content)
+        await self.db["reports"].update_one(
             {"pipeline_timestamp": self.pipeline_timestamp},
             {"$set": {"recommendations": recommendations}},
         )
@@ -274,6 +274,7 @@ if __name__ == "__main__":
         container_type=container_type,
         shipowner=shipowner,
     )
+    import asyncio
     logger.debug("Recommender initialized")
-    recommendations = workflow.recommend_repairs()
+    recommendations = asyncio.run(workflow.recommend_repairs())
     logger.success(recommendations)

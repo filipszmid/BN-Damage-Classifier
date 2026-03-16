@@ -4,6 +4,7 @@ App which identifies damages from a report picture.
  * copy **dev.env** rename to **.env** insert secrets
  * ensure all prerequisites such as docker, docker-compose, poetry, makefile, python3.10
  * create local environment: ```make venv```
+ * start comparison interface: ```make ui```
  * build docker image: ```make build```
  * run docker image: ```make up```
  * run end to end integration tests: ```make test-integration```
@@ -17,7 +18,7 @@ There is defined command line interface for quick app management:
 @ML-model:~/ml$ make
 Please use make target where target is one of:
 board               open training monitoring board
-build               build fast api
+build               build services
 clean               clean all log files
 down                down services
 help                display this help message
@@ -26,15 +27,18 @@ test-unit           run unit tests
 test-vars           test variables
 train               run training script
 tune                run hyperparameter search
-up                  set up fast api
+ui                  start Streamlit comparison interface
+up                  set up composition
+up-db               up only mongo service
 venv                create poetry virtual environment
 
 ```
 ## File tree
 ```angular2html
- tree -I 'model|logs|__pycache__|exploration|reports_1'
+ tree -I 'model|logs|__pycache__|exploration|reports_1|.pytest_cache|.git'
 
 .
+├── bitbucket-pipelines-dp.yml
 ├── bitbucket-pipelines.yml
 ├── data
 │   ├── cma
@@ -44,22 +48,49 @@ venv                create poetry virtual environment
 │   │   │   ├── prices.xlsx
 │   │   │   └── README.md
 │   │   └── row_map_dataset.csv
+│   ├── comparsion
+│   │   ├── comparison_output.xlsx
+│   │   ├── temp_b24.xlsx
+│   │   ├── temp_map.xlsx
+│   │   └── temp_sap.xlsx
 │   └── docs
 │       ├── 20240716020106114-CMAU3161209_412182_20231115_0931145343151520321252186-RBEN.png
+│       ├── comparsion
+│       │   ├── additional-rules.png
+│       │   ├── desired_output.xlsx
+│       │   ├── MAPOWANIE INDEKSOW.xlsx
+│       │   ├── pipeline_test_output.xlsx
+│       │   ├── project_plan.txt
+│       │   ├── PRZYKLADY.xlsx
+│       │   ├── Raport_części_chłodniczych___NA_DZIEŃ_2026-01-01_-_2026-02-19.xlsx
+│       │   └── RAPORT SAP.xlsx
+│       ├── interface-eng.png
+│       ├── interface-eng-scan.png
+│       ├── interface-pl.png
 │       ├── processed_row.png
 │       └── training_chart.png
 ├── deploy_dev.sh
 ├── dev.env
 ├── docker-compose.yml
 ├── Dockerfile
+├── interface
+│   ├── cli
+│   │   └── comparser.py
+│   ├── rest_api
+│   │   └── app.py
+│   └── streamlit
+│       ├── app.py
+│       ├── constants.py
+│       └── utils.py
 ├── Makefile
+├── nginx
+│   └── nginx.conf
 ├── poetry.lock
 ├── poetry.toml
 ├── pyproject.toml
 ├── pytest.ini
 ├── README.md
 ├── src
-│   ├── app.py
 │   ├── classifier
 │   │   ├── config.py
 │   │   ├── data_agumentation.py
@@ -72,6 +103,16 @@ venv                create poetry virtual environment
 │   │   ├── model.py
 │   │   ├── train.py
 │   │   └── utils.py
+│   ├── comparsion
+│   │   ├── config.py
+│   │   ├── __init__.py
+│   │   ├── loaders.py
+│   │   ├── matcher.py
+│   │   ├── pipeline.py
+│   │   ├── README.md
+│   │   ├── rules.py
+│   │   ├── transformers.py
+│   │   └── writer.py
 │   ├── config.py
 │   ├── __init__.py
 │   ├── parser
@@ -82,6 +123,7 @@ venv                create poetry virtual environment
 │   │   ├── pricer.py
 │   │   ├── prompt.py
 │   │   └── utils.py
+│   ├── router.py
 │   ├── schema.py
 │   └── utils.py
 └── tests
@@ -97,14 +139,13 @@ venv                create poetry virtual environment
     │   │   ├── __init__.py
     │   │   └── test_ocr.py
     │   └── test_save_label.py
-    ├── test_parser
     └── unit_tests
         ├── __init__.py
         └── test_dummy.py
 
-12 directories, 55 files
-
+19 directories, 85 files
 ```
+
 
 
 ## Environment Variables
@@ -134,6 +175,30 @@ In **data/cma/price_catalogues** there need to be:
 
 Swagger and testing the endpoints:
 http://0.0.0.0:8000/docs
+
+## User Interfaces
+This project provides multiple ways to interact with the core logic, showcasing a diverse set of interface development skills from interactive web applications to robust APIs and fast CLI tools.
+
+### 1. Excel Comparison Application
+An immersive, full-screen graphical interface built with Streamlit (`interface/streamlit/app.py`). It allows users to easily upload the B24, SAP, and Mapping files to execute the comparison logic defined in `src/comparsion`.
+
+![Excel Comparison Interface](data/docs/interface-eng.png)
+
+### 2. AI Scanner Report Application
+Another Streamlit interface available within the main web app that handles visual inspection reports. Users can upload `.webp` files and configure container metadata, seamlessly integrating with the background AI processing pipeline.
+
+![AI Scanner Interface](data/docs/interface-eng-scan.png)
+
+### 3. REST API
+A robust FastAPI backend (`interface/rest_api/app.py`) providing programmatic access to the Image Recognition API and data management workflows. Fully documented with interactive Swagger UI.
+
+![AI Scanner Interface](data/docs/interface-api.png)
+
+### 4. Command Line Interface (CLI)
+For quick, scripted, and headless execution, a dedicated CLI `comparser.py` (`interface/cli/comparser.py`) is provided. It facilitates running comparisons directly from the terminal or CI/CD pipelines:
+```bash
+poetry run python -m interface.cli.comparser --b24 "Raport_B24.xlsx" --sap "RAPORT_SAP.xlsx" --map "MAPOWANIE.xlsx" --out "wynik.xlsx"
+```
 
 # Documentation for Image Recognition API
 This API handles image processing, data management, and machine learning operations.
@@ -228,8 +293,7 @@ models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
 ```
 Model have been trained to classify pictures of  handwritten damage text into metadata:
 ![processed_row.png](data%2Fdocs%2Fprocessed_row.png)
-
-Pictures have been normalized by mapping OCR (GCP cloud vision) box into 1000x1000 pixels white space which will allow different augmentation like rotating, flipping, adding distractions etx.
+Pictures have been normalizing by mapping OCR (GCP cloud vision) box into 1000x1000 pixels white space which will allow different augmentation like rotating, flipping, adding distractions etx.
 ## Training ResNet model
 
 ### Overfitting problem 
@@ -321,6 +385,14 @@ After it will be necessary to use GCP bucket.
  - feedback from users which model is working better for this task: local model vs gpt-4o
  - more experiments with batch sizes and different k fold splits
  - open question is if there are multiple types of containers f.e. RF and DC, is the damage with same code like DB1N can mean different damages for them?
+
+# Architecture and MLOps Best Practices
+The project infrastructure takes full advantage of cloud-native architecture via `docker-compose.yml`, laying down a solid foundation for robust MLOps operations:
+
+* **Nginx** (Reverse Proxy): Operates as the secure API Gateway routing traffic internally. This isolates the internal microservices (`app` and `ui`) from direct public internet exposure, gracefully load balances inbound HTTP traffic, and allows future seamless inclusion of TLS cryptography.
+* **MongoDB** (NoSQL Document Store): AI pipelines inherently deal with unstructured data, continuous schema transformations, and varying damage predictions. Storing labels in traditional SQL tables introduces harsh migration complexities. MongoDB’s JSON/BSON-like document architecture perfectly mirrors the dynamic nested JSON outputs emitted by models and GPT-4.
+* **Container Segregation Strategy**: Decomposed the environment into dedicated containers (`app`, `ui`, `mongo`, `nginx`) encapsulating their specific dependencies. This best practice completely sidesteps dependency hell and supports scalable horizontal distribution later onto Kubernetes or AWS ECS with minimal refactoring.
+* **Health Checks & Recovery**: Docker compose ensures each service contains distinct `healthchecks` alongside `restart: on-failure` policies meaning transient API interruptions natively self-heal.
 
 # Prerequisites on Host:
  * python 3.11

@@ -1,15 +1,21 @@
 import os
 
-import yaml
+class Config:
+    @staticmethod
+    def get_project_root():
+        """ Find the project root directory based on a known file or directory in the project. """
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.join(current_dir, '../') 
+        return os.path.abspath(project_root)
 
+    @classmethod
+    def get_data_dir(cls):
+        """ Returns the absolute path to the data directory """
+        return os.path.join(cls.get_project_root(), "data")
 
 def get_project_root():
-    """ Find the project root directory based on a known file or directory in the project. """
-    # Assume this script is run from somewhere within the project structure, e.g., 'src/parser'
-    # Adjust the path below to correctly point to the project root based on this script's location
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.join(current_dir, '../')  # Adjust the traversal to the project root
-    return os.path.abspath(project_root)
+    """ Backward compatible function for the rest of the app """
+    return Config.get_project_root()
 
 # def get_config():
 #     project_root = get_project_root()

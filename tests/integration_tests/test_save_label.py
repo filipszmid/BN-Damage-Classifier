@@ -5,48 +5,48 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 from tests.integration_tests.test_app import PHOTO_PATH, SHIPOWNER, URL
 
-URL_SAVE_LABEL = "http://localhost:8000/save-label/"
-URL_DELETE_LABEL = "http://localhost:8000/delete-label/"
+URL_SAVE_LABEL = "http://localhost/api/save-label/"
+URL_DELETE_LABEL = "http://localhost/api/delete-label/"
 
 
 @pytest.fixture
 def labels_data():
     return [
         {
-            "lokalizacja": "FB3N",
-            "komponent": "PANEL",
-            "rodzaj naprawy": "Straighten",
-            "uszkodzenie": "Dent",
-            "dlugosc": None,
-            "szerokosc": None,
-            "ilosc": 2,
-            "godziny": "0.00",
+            "localisation": "FB3N",
+            "component": "PANEL",
+            "repair_type": "Straighten",
+            "damage": "Dent",
+            "length": None,
+            "width": None,
+            "quantity": 2,
+            "hours": "0.00",
             "material": "0.00",
-            "wartosc": "0.00",
+            "cost": "0.00",
         },
         {
-            "lokalizacja": "DB3N",
-            "komponent": "HANDLE RETAINER",
-            "rodzaj naprawy": "Straighten",
-            "uszkodzenie": "Bent",
-            "dlugosc": None,
-            "szerokosc": None,
-            "ilosc": 1,
-            "godziny": "0.00",
+            "localisation": "DB3N",
+            "component": "HANDLE RETAINER",
+            "repair_type": "Straighten",
+            "damage": "Bent",
+            "length": None,
+            "width": None,
+            "quantity": 1,
+            "hours": "0.00",
             "material": "0.00",
-            "wartosc": "0.00",
+            "cost": "0.00",
         },
         {
-            "lokalizacja": "DB2N",
-            "komponent": "HANDLE OT",
-            "rodzaj naprawy": "Straighten",
-            "uszkodzenie": "Bent",
-            "dlugosc": None,
-            "szerokosc": None,
-            "ilosc": 1,
-            "godziny": "0.25",
+            "localisation": "DB2N",
+            "component": "HANDLE OT",
+            "repair_type": "Straighten",
+            "damage": "Bent",
+            "length": None,
+            "width": None,
+            "quantity": 1,
+            "hours": "0.25",
             "material": "0.00",
-            "wartosc": "4.75",
+            "cost": "4.75",
         },
     ]
 

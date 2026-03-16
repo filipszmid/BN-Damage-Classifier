@@ -10,6 +10,7 @@ from torchvision import transforms
 from src.classifier.model import ResNetClassifier
 from src.classifier.utils import load_json
 from src.parser.utils import open_image
+from src.config import Config
 
 
 class SingletonMeta(type):
@@ -46,7 +47,7 @@ class ContainerDamageClassifierWorkflow(metaclass=SingletonMeta):
             checkpoint_id (str): Name of existing checkpoint.
         """
         self.db = db
-        run_path = os.path.join("../../data/cma/model/", run_name)
+        run_path = os.path.join(Config.get_data_dir(), "cma", "model", run_name)
         model_path = os.path.join(
             run_path, "checkpoints", f"model_epoch_{checkpoint_id}.pth"
         )  # fold_3
@@ -130,7 +131,7 @@ class ContainerDamageClassifierWorkflow(metaclass=SingletonMeta):
         open_image(image_path)
         return prediction
 
-    def predict_repairs(self, file_paths, pipeline_timestamp) -> list:
+    async def predict_repairs(self, file_paths, pipeline_timestamp) -> list:
         """
         Predicts report.
 
@@ -153,7 +154,7 @@ class ContainerDamageClassifierWorkflow(metaclass=SingletonMeta):
             predictions.append(prediction)
         logger.success("Own model predictions:")
         logger.success(predictions)
-        self.db["reports"].update_one(
+        await self.db["reports"].update_one(
             {"pipeline_timestamp": pipeline_timestamp},
             {"$set": {"own_model_predictions": predictions}},
         )
