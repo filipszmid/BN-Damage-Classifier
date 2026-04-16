@@ -13,7 +13,7 @@ services:
       - .env
     environment:
       - MONGO_URI=mongodb://mongo:27017   
-    command: poetry run uvicorn interface.rest_api.app:app --host 0.0.0.0 --reload
+    command: poetry run uvicorn interface.rest_api.app:app --host 0.0.0.0
     depends_on:
       - mongo
     healthcheck:
